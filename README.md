@@ -1,6 +1,6 @@
 # khinsider_mass_downloader_script
 
-This is a script that can download FLAC and MP3 format music from the famous game soundtrack website **khinsider**.
+This is a script that can download FLAC , WAV and MP3 format music from the famous game soundtrack website **khinsider**.
 
 ## To use this script correctly, you need to follow the following steps:
 
@@ -12,7 +12,7 @@ This is a script that can download FLAC and MP3 format music from the famous gam
    
    ![Screenshot](https://github.com/user-attachments/assets/b63e9179-e46f-4c89-8184-ba749bb264b8)
 
-6. Then, another window will pop up asking which format of music you want: MP3 or FLAC. Note that some albums only provide MP3 format, so it will raise an error if you try to download FLAC in this situation.
+6. Then, another window will pop up asking which format of music you want: MP3 or FLAC or WAV. Note that some albums only provide MP3 format, so it will raise an error if you try to download FLAC or WAV in this situation.
 7. Congratulations! The download process has started! If you encounter any errors that you can't figure out, file an issue.
 
 
