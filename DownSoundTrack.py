@@ -4,21 +4,25 @@ from tkinter import simpledialog, messagebox, Checkbutton, IntVar
 import requests
 from bs4 import BeautifulSoup
 
-def download_tracks(album_url, download_flac, download_mp3):
+def download_tracks(album_url, download_flac, download_wav, download_mp3):
     track_links = get_track_links(album_url)
     for link in track_links:
         track_page = requests.get(link)
         track_soup = BeautifulSoup(track_page.text, 'html.parser')
-        flac_link = mp3_link = None
+        flac_link = mp3_link = wav_link = None
 
         for a in track_soup.find_all('a'):
             if 'Click here to download as FLAC' in a.text:
                 flac_link = a['href']
+            if 'Click here to download as WAV'  in a.text:
+                wav_link = a['href']
             if 'Click here to download as MP3' in a.text:
                 mp3_link = a['href']
 
         if download_flac and flac_link:
             download_and_save(flac_link)
+        elif download_wav and wav_link:
+            download_and_save(wav_link)
         elif download_mp3 and mp3_link:
             download_and_save(mp3_link)
         else:
@@ -60,29 +64,32 @@ def get_track_links(album_url):
             else:
                 # 补全相对URL
                 full_link = base_url + href if href.startswith('/') else base_url + '/' + href
-            if full_link.endswith(".mp3") or full_link.endswith(".flac"):
+            if full_link.endswith(".mp3") or full_link.endswith(".flac") or full_link.endswith(".wav"):
                 track_links.append(full_link)
     return track_links
 
 def ask_user_for_album_link(root):
     root.withdraw()
     flac_var = IntVar()
+    wav_var = IntVar()
     mp3_var = IntVar()
     album_url = simpledialog.askstring("Input", "Please enter the album URL:", parent=root)
 
     if album_url:
         checkbox_window = tk.Toplevel(root)
         flac_check = Checkbutton(checkbox_window, text="Download FLAC", variable=flac_var)
+        wav_check = Checkbutton(checkbox_window, text="Download WAV", variable=wav_var)
         mp3_check = Checkbutton(checkbox_window, text="Download MP3", variable=mp3_var)
         flac_check.pack()
+        wav_check.pack()
         mp3_check.pack()
-        proceed_button = tk.Button(checkbox_window, text="Download", command=lambda: proceed(album_url, flac_var.get(), mp3_var.get(), checkbox_window, root))
+        proceed_button = tk.Button(checkbox_window, text="Download", command=lambda: proceed(album_url, flac_var.get(), wav_var.get(), mp3_var.get(), checkbox_window, root))
         proceed_button.pack()
         checkbox_window.mainloop()
 
-def proceed(url, flac, mp3, window, root):
+def proceed(url, flac, wav, mp3, window, root):
     window.destroy()
-    download_tracks(url, flac, mp3)
+    download_tracks(url, flac, wav, mp3)
     root.quit()  # 正确退出mainloop
 
 if __name__ == "__main__":
