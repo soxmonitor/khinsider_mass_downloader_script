@@ -8,7 +8,7 @@ IF %ERRORLEVEL% NEQ 0 (
 )
 
 :: 以绕过执行策略的方式运行 PowerShell 脚本
-PowerShell -NoProfile -ExecutionPolicy Bypass -File "D:\Git-Local-Repo\khinsider_mass_downloader_script\DepChecker.ps1"
+PowerShell -NoProfile -ExecutionPolicy Bypass -File "%~dp0DepChecker.ps1"
 
 :: 暂停以便查看输出
 pause
