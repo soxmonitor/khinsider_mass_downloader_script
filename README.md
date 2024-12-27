@@ -1,8 +1,16 @@
-# khinsider_mass_downloader_script
+# khinsider_mass_downloader_script / Khinsider 游戏内原声带下载脚本
 
 This is a script that can download FLAC , WAV and MP3 format music from the famous game soundtrack website **khinsider**.
 
-## To use this script correctly, you need to follow the following steps:
+### My Goal is always create a user friendly script ###
+###                   傻瓜式教程                     ###
+1，Git pull 整个仓库（或者你也可以直接下载 Multi-ThreadVer1.01.py, DepCehcker.ps1, Lazybutton_AllinOne.bat这三个文件，将这些文件放在一个文件夹下） 
+
+2，直接双击Lazybutton_AllinOne.bat
+
+3, 在khinsider中找到你要下载的专辑的url，这里以 galgame 变态监狱为例，它的专辑url是`https://downloads.khinsider.com/game-soundtracks/album/hentai-prison-original-soundtrack-2022`，你直接填入弹出的窗口后，选择你要下载的音质（WAV >= FLAC > MP3）即可。
+
+## To use this script correctly, you need to follow the following steps: (Only for non-Windows users)
 
 1. Download the file named `DownSoundTrack.py` from the repo.
 2. Install Python and add it to your system path so that you can call `python` in the cmd directly. (If you already installed Python, skip)
