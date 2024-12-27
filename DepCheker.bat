@@ -131,6 +131,33 @@ echo.
 echo =====================================
 echo All dependencies have been checked and installed as needed.
 echo =====================================
+
+:: -------------------------------
+:: Run Python Script
+:: -------------------------------
+echo.
+echo =====================================
+echo All dependencies have been checked and installed as needed.
+echo =====================================
+echo.
+
+:: Check if the Python script exists
+if exist "%~dp0Muti-ThreadVer1.01.py" (
+    echo Running Muti-ThreadVer1.01.py...
+    "%PYTHON_COMMAND%" "%~dp0Muti-ThreadVer1.01.py"
+    if %errorlevel% neq 0 (
+        echo.
+        echo Error: Muti-ThreadVer1.01.py failed to run.
+        goto :end
+    ) else (
+        echo.
+        echo Muti-ThreadVer1.01.py executed successfully.
+    )
+) else (
+    echo Error: Muti-ThreadVer1.01.py not found in %~dp0
+    goto :end
+)
+
 pause
 goto :eof
 
