@@ -23,7 +23,7 @@ if %errorlevel% equ 0 (
         echo Python is available via 'py' launcher.
         set "PYTHON_COMMAND=py"
     ) else (
-        echo 'py' launcher is not available. Python may not be installed or not added to PATH.
+        echo 'py' Launcher is not available. Python may not be installed or not added to PATH.
         echo Attempting to download and install Python...
         
         :: Define Python installer URL
@@ -33,28 +33,31 @@ if %errorlevel% equ 0 (
         
         :: Download Python installer
         call :download_file "%PYTHON_URL%" "%PYTHON_INSTALLER%"
-        if not exist "%PYTHON_INSTALLER%" (
+        if not exist "%~dp0%PYTHON_INSTALLER%" (
             echo Failed to download Python installer.
             goto :end
         )
         
         :: Install Python silently and add to PATH
         echo Installing Python...
-        "%PYTHON_INSTALLER%" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1
+        "%~dp0%PYTHON_INSTALLER%" /quiet InstallAllUsers=1 PrependPath=1 Include_pip=1
         if %errorlevel% neq 0 (
             echo Python installation failed.
-            del "%PYTHON_INSTALLER%"
+            del "%~dp0%PYTHON_INSTALLER%"
             goto :end
         )
         
         :: Remove installer after installation
-        del "%PYTHON_INSTALLER%"
+        del "%~dp0%PYTHON_INSTALLER%"
         
-        :: Refresh environment variables
-        :: Note: Environment variables are not updated in the current session. A restart is required.
-        echo Please restart your terminal to apply the updated PATH.
+        :: Inform the user to restart the terminal
+        echo.
+        echo =====================================
         echo Python has been installed successfully.
-        goto :end
+        echo Please restart your terminal to apply the updated PATH.
+        echo =====================================
+        pause
+        goto :success
     )
 )
 
@@ -137,7 +140,7 @@ echo =====================================
 :: -------------------------------
 echo.
 echo =====================================
-echo All dependencies have been checked and installed as needed.
+echo Running the Python script.
 echo =====================================
 echo.
 
@@ -159,44 +162,54 @@ if exist "%~dp0Muti-ThreadVer1.01.py" (
 )
 
 pause
-goto :eof
+goto :success
 
 :: -------------------------------
 :: Function to Download Files
 :: -------------------------------
 :download_file
-set "url=%~1"
-set "output=%~2"
-echo.
-echo Downloading from %url% ...
-powershell -Command "try { Invoke-WebRequest -Uri '%url%' -OutFile '%output%' } catch { exit 1 }"
-if %errorlevel% neq 0 (
-    echo Failed to download %url%.
-    exit /b 1
-)
-echo Downloaded successfully to %output%.
-goto :eof
+    set "url=%~1"
+    set "output=%~2"
+    echo.
+    echo Downloading from %url% ...
+    powershell -Command "try { Invoke-WebRequest -Uri '%url%' -OutFile '%~dp0%output%' } catch { Write-Error $_; exit 1 }"
+    if %errorlevel% neq 0 (
+        echo Failed to download %url%.
+        exit /b 1
+    )
+    echo Downloaded successfully to %~dp0%output%.
+    goto :eof
 
 :: -------------------------------
 :: Map Package Names to Module Names
 :: -------------------------------
 :map_package_to_module
-set "package=%~1"
-if /i "%package%"=="beautifulsoup4" (
-    set "module=bs4"
-) else (
-    set "module=%package%"
-)
-goto :eof
+    set "package=%~1"
+    if /i "%package%"=="beautifulsoup4" (
+        set "module=bs4"
+    ) else (
+        set "module=%package%"
+    )
+    goto :eof
 
 :: -------------------------------
-:: End of Script
+:: End of Script Due to Errors
 :: -------------------------------
 :end
-echo.
-echo =====================================
-echo Script terminated due to errors.
-echo =====================================
-pause
-goto :eof
+    echo.
+    echo =====================================
+    echo Script terminated due to errors.
+    echo =====================================
+    pause
+    goto :eof
 
+:: -------------------------------
+:: Successful Termination
+:: -------------------------------
+:success
+    echo.
+    echo =====================================
+    echo Script completed successfully.
+    echo =====================================
+    pause
+    goto :eof
