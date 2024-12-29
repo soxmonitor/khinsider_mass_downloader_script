@@ -194,11 +194,12 @@ Function Ensure-Pip {
 # Function to install required Python packages
 Function Install-PythonPackages {
     Write-Output "Defining third-party packages to check..."
-    $packages = @("requests", "beautifulsoup4")
+    # 添加 'pillow' 到包列表
+    $packages = @("requests", "beautifulsoup4", "pillow")
 
     Write-Output "Checking and installing third-party packages..."
     foreach ($pkg in $packages) {
-        $module = if ($pkg -eq "beautifulsoup4") { "bs4" } else { $pkg }
+        $module = if ($pkg -eq "beautifulsoup4") { "bs4" } elseif ($pkg -eq "pillow") { "PIL" } else { $pkg }
         Write-Output "`nChecking if module '$module' is installed..."
         try {
             & python -c "import $module" 2>$null
@@ -254,26 +255,27 @@ Function Check-StandardModules {
 
 # Function to run the Python script
 Function Run-PythonScript {
-    $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath "Muti-ThreadVer1.01.py"
+    # 修改脚本名称为 Multi-ThreadVer1.02.py
+    $scriptPath = Join-Path -Path $PSScriptRoot -ChildPath "Multi-ThreadVer1.02.py"
     if (Test-Path $scriptPath) {
-        Write-Output "`nRunning Muti-ThreadVer1.01.py..."
+        Write-Output "`nRunning Multi-ThreadVer1.02.py..."
         try {
             & python $scriptPath
             if ($LASTEXITCODE -ne 0) {
-                Write-Error "Error: Muti-ThreadVer1.01.py failed to run."
+                Write-Error "Error: Multi-ThreadVer1.02.py failed to run."
                 exit 1
             }
             else {
-                Write-Output "Muti-ThreadVer1.01.py executed successfully."
+                Write-Output "Multi-ThreadVer1.02.py executed successfully."
             }
         }
         catch {
-            Write-Error "Failed to execute Muti-ThreadVer1.01.py: $_"
+            Write-Error "Failed to execute Multi-ThreadVer1.02.py: $_"
             exit 1
         }
     }
     else {
-        Write-Error "Error: Muti-ThreadVer1.01.py not found in $PSScriptRoot."
+        Write-Error "Error: Multi-ThreadVer1.02.py not found in $PSScriptRoot."
         exit 1
     }
 }
