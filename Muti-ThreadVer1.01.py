@@ -9,7 +9,7 @@ from urllib.parse import unquote
 from concurrent.futures import ThreadPoolExecutor
 
 # 一些常量，用户你可以自行修改
-DEFAULT_URL = 'https://downloads.khinsider.com/game-soundtracks/album/battlefield-2042-ps4-ps5-windows-xbox-one-xbox-series-xs-gamerip-2021'
+DEFAULT_URL = 'https://downloads.khinsider.com/game-soundtracks/album/hentai-prison-original-soundtrack-2022'
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 LAST_URL_FILENAME = 'last_url.txt'
 THREAD_OPTIONS = [1, 2, 4, 8, 16, 32]
