@@ -2,7 +2,7 @@
 
 This is a script that can download FLAC , WAV and MP3 format music from the famous game soundtrack website **khinsider**.
 
-## My Goal is always create a user friendly script ## 
+## My Goal is always to create a user friendly script ## 
 ##                   傻瓜式教程(Windows only)      ##
 1，Git pull 整个仓库（或者你也可以直接下载 Multi-ThreadVer1.01.py, DepCehcker.ps1, Lazybutton_AllinOne.bat这三个文件，将这些文件放在一个文件夹下） 
 
