@@ -9,7 +9,7 @@ from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageTk
 import io
 
-# Constants for default URL and the file to store the last URL
+# 用户可以自行设定的一些常量
 DEFAULT_URL = 'https://downloads.khinsider.com/game-soundtracks/album/battlefield-2042-ps4-ps5-windows-xbox-one-xbox-series-xs-gamerip-2021'
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 LAST_URL_FILENAME = 'last_url.txt'
@@ -17,10 +17,10 @@ THREAD_OPTIONS = [1, 2, 4, 8, 16, 32]
 DEFAULT_THREADS = 32
 BASE_URL = 'https://downloads.khinsider.com'
 
-# Global list to keep references to PhotoImage objects
+# 图片保存结构
 image_references = []
 
-# 下载并保存文件，支持断点续传和重试机制
+# 下载并保存文件，加入重试机制
 def download_and_save(download_link, download_dir):
     try:
         # 获取解码后的文件名
@@ -470,7 +470,7 @@ def proceed(url, download_dir, thread_count, remember, window, root):
             print(f"Failed to save the URL. Error: {e}")
 
     window.destroy()
-    # Proceed to ask for download formats
+    # 跳转至音质选择框
     ask_user_for_download_options(url, download_dir, thread_count, root)
 
 # 界面交互，允许用户选择下载格式
