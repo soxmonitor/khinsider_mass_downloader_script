@@ -9,7 +9,7 @@ This is a script that can download FLAC , WAV and MP3 format music from the famo
 2，直接双击Lazybutton_AllinOne.bat
 
 3, 在弹出的窗口中点search按钮，并输入关键词，脚本会为你自动找到匹配专辑，然后，点击Open Album，网址会自动填入url栏。其余config请自行探索。
-效果演示：![屏幕截图 2024-12-30 032603](https://github.com/user-attachments/assets/c209faea-8ddc-4c96-a92f-5bf22ccaafdd)
+效果演示：![屏幕截图 2024-12-30 032603](https://github.com/user-attachments/assets/50d972b2-1e7d-4266-a080-1c0830dde4bc)
 
 
 ### To use this script correctly, you need to follow the following steps: (Only for non-Windows users)
