@@ -8,7 +8,7 @@ This is a script that can download FLAC , WAV and MP3 format music from the famo
 
 2，直接双击Lazybutton_AllinOne.bat
 
-3, 在khinsider中找到你要下载的专辑的url，这里以 galgame 变态监狱为例，它的专辑url是`https://downloads.khinsider.com/game-soundtracks/album/hentai-prison-original-soundtrack-2022`，你直接填入弹出的窗口后，选择你要下载的音质（WAV >= FLAC > MP3）即可。
+3, 在弹出的窗口中点search按钮，并输入关键词，脚本会为你自动找到匹配专辑，然后，点击Open Album，网址会自动填入url栏。其余config请自行探索。
 
 ### To use this script correctly, you need to follow the following steps: (Only for non-Windows users)
 
