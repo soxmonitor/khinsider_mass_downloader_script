@@ -1,4 +1,4 @@
-# ====================================
+## ====================================
 # Python Installation and Configuration Script
 # ====================================
 
@@ -6,15 +6,19 @@
 $pythonUrl = "https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe"
 
 # Directory where the installer will be downloaded
-$tempDirectory = "C:\temp_provision\"
+$tempDirectory = Join-Path -Path $env:LOCALAPPDATA -ChildPath "Temp"
 
 # Installation Directory
 $targetDir = "C:\Python312"
 
+# Path to python.exe and Scripts directory
+$pythonExe = Join-Path -Path $targetDir -ChildPath "python.exe"
+$scriptsDir = Join-Path -Path $targetDir -ChildPath "Scripts"
+
 # Function to check if Python is installed
 Function Is-PythonInstalled {
     # Check if python.exe exists in the target directory
-    if (Test-Path "$targetDir\python.exe") {
+    if (Test-Path $pythonExe) {
         return $true
     }
     # Alternatively, check if python is in PATH
@@ -93,31 +97,58 @@ Function Configure-EnvironmentVariables {
         return $pathList
     }
 
-    Function Add-EnvPath {
+    Function Add-EnvPathBeforeWindowsApps {
         Param (
-            [string]$pathToAdd
+            [string[]]$pathsToAdd
         )
-        $pathList = Get-EnvPathList
-        $alreadyPresentCount = ($pathList | Where-Object { $_ -eq $pathToAdd }).Count
-        if ($alreadyPresentCount -eq 0) {
-            $pathList.Add($pathToAdd) | Out-Null
-            $returnPath = $pathList -join ";"
-            [System.Environment]::SetEnvironmentVariable('PATH', $returnPath, [System.EnvironmentVariableTarget]::Machine)
-            [System.Environment]::SetEnvironmentVariable('PATH', $returnPath, [System.EnvironmentVariableTarget]::Process)
-            [System.Environment]::SetEnvironmentVariable('PATH', $returnPath, [System.EnvironmentVariableTarget]::User)
-            Write-Information "Path '$pathToAdd' added to PATH."
+        $currentPathList = Get-EnvPathList
+
+        # Find the index of WindowsApps
+        $windowsAppsIndex = -1
+        for ($i = 0; $i -lt $currentPathList.Count; $i++) {
+            if ($currentPathList[$i].ToLower().EndsWith("windowsapps")) {
+                $windowsAppsIndex = $i
+                break
+            }
+        }
+
+        if ($windowsAppsIndex -ne -1) {
+            # Remove the pathsToAdd if they already exist
+            foreach ($path in $pathsToAdd) {
+                $currentPathList.RemoveAll({ $_.ToLower() -eq $path.ToLower() }) | Out-Null
+            }
+
+            # Insert the new paths before WindowsApps
+            for ($j = $pathsToAdd.Length - 1; $j -ge 0; $j--) {
+                $currentPathList.Insert($windowsAppsIndex, $pathsToAdd[$j])
+            }
+            Write-Output "Inserted paths before WindowsApps."
         }
         else {
-            Write-Information "Path '$pathToAdd' already exists in PATH."
+            # If WindowsApps not found, append the paths
+            foreach ($path in $pathsToAdd) {
+                if (-not ($currentPathList -contains $path)) {
+                    $currentPathList.Add($path) | Out-Null
+                }
+            }
+            Write-Output "WindowsApps path not found. Appended paths to PATH."
         }
+
+        # Update the PATH environment variable
+        $newPath = $currentPathList -join ";"
+        [System.Environment]::SetEnvironmentVariable('PATH', $newPath, [System.EnvironmentVariableTarget]::Machine)
+        [System.Environment]::SetEnvironmentVariable('PATH', $newPath, [System.EnvironmentVariableTarget]::Process)
+        [System.Environment]::SetEnvironmentVariable('PATH', $newPath, [System.EnvironmentVariableTarget]::User)
+        Write-Information "PATH environment variable updated."
     }
 
     # Add required environment extensions
     Add-EnvExtension '.PY'
     Add-EnvExtension '.PYW'
 
-    # Add Python installation directory to PATH
-    Add-EnvPath $targetDir
+    # Add Python installation directory and Scripts directory before WindowsApps
+    $pathsToAdd = @($targetDir, $scriptsDir)
+    Add-EnvPathBeforeWindowsApps -pathsToAdd $pathsToAdd
 }
 
 # Function to install Python
@@ -175,18 +206,35 @@ Function Install-Python {
 Function Ensure-Pip {
     Write-Output "Checking if pip is available..."
     try {
-        & python -m pip --version | Out-Null
+        & $pythonExe -m pip --version | Out-Null
         Write-Output "pip is available."
     }
     catch {
         Write-Output "pip is not available. Attempting to install pip..."
         try {
-            & python -m ensurepip --upgrade
-            Write-Output "pip has been installed successfully."
+            & $pythonExe -m ensurepip --upgrade
+            Write-Output "pip has been installed successfully using ensurepip."
         }
         catch {
-            Write-Error "Failed to install pip."
-            exit 1
+            Write-Output "Failed to install pip using ensurepip. Attempting to install pip using get-pip.py..."
+            # 下载 get-pip.py 并安装 pip
+            $getPipUrl = "https://bootstrap.pypa.io/get-pip.py"
+            $getPipPath = Join-Path -Path $tempDirectory -ChildPath "get-pip.py"
+            try {
+                (New-Object System.Net.WebClient).DownloadFile($getPipUrl, $getPipPath)
+                & $pythonExe $getPipPath
+                if (& $pythonExe -m pip --version) {
+                    Write-Output "pip has been installed successfully using get-pip.py."
+                }
+                else {
+                    Write-Error "Failed to install pip using get-pip.py."
+                    exit 1
+                }
+            }
+            catch {
+                Write-Error "Failed to download or install pip using get-pip.py: $_"
+                exit 1
+            }
         }
     }
 }
@@ -194,38 +242,60 @@ Function Ensure-Pip {
 # Function to install required Python packages
 Function Install-PythonPackages {
     Write-Output "Defining third-party packages to check..."
-    # 添加 'pillow' 到包列表
-    $packages = @("requests", "beautifulsoup4", "pillow")
+    # 添加 'pillow' 到包列表，并指定版本
+    $packages = @(
+        @{name="requests"; module="requests"; version="2.32.3"},
+        @{name="beautifulsoup4"; module="bs4"; version="4.12.3"},
+        @{name="pillow"; module="PIL"; version="11.0.0"}
+    )
 
     Write-Output "Checking and installing third-party packages..."
     foreach ($pkg in $packages) {
-        $module = if ($pkg -eq "beautifulsoup4") { "bs4" } elseif ($pkg -eq "pillow") { "PIL" } else { $pkg }
-        Write-Output "`nChecking if module '$module' is installed..."
+        $packageName = $pkg.name
+        $moduleName = $pkg.module
+        $requiredVersion = $pkg.version
+
+        Write-Output "`nChecking if module '$moduleName' is installed..."
         try {
-            & python -c "import $module" 2>$null
+            # 获取当前安装的模块版本
+            $currentVersion = & $pythonExe -c "import $moduleName; print($moduleName.__version__)" 2>$null
             if ($LASTEXITCODE -eq 0) {
-                Write-Output "Module '$module' is already installed."
+                # 比较版本
+                if ([version]$currentVersion -lt [version]$requiredVersion) {
+                    Write-Output "Module '$moduleName' version $currentVersion is less than required $requiredVersion. Upgrading..."
+                    & $pythonExe -m pip install --upgrade "$packageName==$requiredVersion"
+                    if ($LASTEXITCODE -ne 0) {
+                        Write-Error "Failed to upgrade package '$packageName' to version $requiredVersion."
+                        exit 1
+                    }
+                    else {
+                        Write-Output "Package '$packageName' upgraded to version $requiredVersion successfully."
+                    }
+                }
+                else {
+                    Write-Output "Module '$moduleName' version $currentVersion meets the requirement."
+                }
             }
             else {
-                Write-Output "Module '$module' is not installed. Installing package '$pkg'..."
-                & python -m pip install $pkg
+                Write-Output "Module '$moduleName' is not installed. Installing package '$packageName' version $requiredVersion..."
+                & $pythonExe -m pip install "$packageName==$requiredVersion"
                 if ($LASTEXITCODE -ne 0) {
-                    Write-Error "Failed to install package '$pkg'."
+                    Write-Error "Failed to install package '$packageName' version $requiredVersion."
                     exit 1
                 }
                 else {
-                    Write-Output "Package '$pkg' installed successfully."
+                    Write-Output "Package '$packageName' version $requiredVersion installed successfully."
                 }
             }
         }
         catch {
-            Write-Output "Module '$module' is not installed. Installing package '$pkg'..."
+            Write-Output "Module '$moduleName' is not installed. Installing package '$packageName' version $requiredVersion..."
             try {
-                & python -m pip install $pkg
-                Write-Output "Package '$pkg' installed successfully."
+                & $pythonExe -m pip install "$packageName==$requiredVersion"
+                Write-Output "Package '$packageName' version $requiredVersion installed successfully."
             }
             catch {
-                Write-Error "Failed to install package '$pkg'."
+                Write-Error "Failed to install package '$packageName' version $requiredVersion."
                 exit 1
             }
         }
@@ -239,7 +309,7 @@ Function Check-StandardModules {
     foreach ($module in $standard_modules) {
         Write-Output "`nVerifying module '$module'..."
         try {
-            & python -c "import $module" 2>$null
+            & $pythonExe -c "import $module" 2>$null
             if ($LASTEXITCODE -eq 0) {
                 Write-Output "Module '$module' is available."
             }
@@ -260,7 +330,7 @@ Function Run-PythonScript {
     if (Test-Path $scriptPath) {
         Write-Output "`nRunning Multi-ThreadVer1.02.py..."
         try {
-            & python $scriptPath
+            & $pythonExe $scriptPath
             if ($LASTEXITCODE -ne 0) {
                 Write-Error "Error: Multi-ThreadVer1.02.py failed to run."
                 exit 1
@@ -296,7 +366,7 @@ else {
 # Ensure pip is available
 Ensure-Pip
 
-# Install required Python packages
+# Install required Python packages with specific versions
 Install-PythonPackages
 
 # Check standard Python modules
@@ -318,3 +388,4 @@ Write-Output "====================================="
 # Pause the script to allow the user to see the messages
 Write-Output "`nPress any key to exit..."
 $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+

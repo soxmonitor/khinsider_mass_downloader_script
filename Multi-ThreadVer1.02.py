@@ -10,7 +10,7 @@ from PIL import Image, ImageTk
 import io
 
 # 用户可以自行设定的一些常量
-DEFAULT_URL = 'https://downloads.khinsider.com/game-soundtracks/album/battlefield-2042-ps4-ps5-windows-xbox-one-xbox-series-xs-gamerip-2021'
+DEFAULT_URL = 'https://downloads.khinsider.com/game-soundtracks/album/hentai-prison-original-soundtrack-2022'
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
 LAST_URL_FILENAME = 'last_url.txt'
 THREAD_OPTIONS = [1, 2, 4, 8, 16, 32]
@@ -21,45 +21,69 @@ BASE_URL = 'https://downloads.khinsider.com'
 image_references = []
 
 # 下载并保存文件，加入重试机制
-def download_and_save(download_link, download_dir):
-    try:
-        # 获取解码后的文件名
-        file_name = unquote(download_link.split('/')[-1])
+def download_and_save(download_link, download_dir, max_retries=3, wait_seconds=3):
+    """
+    下载并保存文件，支持重试机制。
 
-        # 清理文件名，去除不合法字符
-        safe_file_name = re.sub(r'[<>:"/\\|?*]', '', file_name)
-        safe_file_name = re.sub(r'[^\w\s.-]', '', safe_file_name)
+    参数:
+    - download_link (str): 下载链接。
+    - download_dir (str): 下载目录。
+    - max_retries (int): 最大重试次数，默认为3。
+    - wait_seconds (int): 每次重试之间的等待时间（秒），默认为3。
+    """
+    attempt = 0
+    while attempt < max_retries:
+        try:
+            # 获取解码后的文件名
+            file_name = unquote(download_link.split('/')[-1])
 
-        # 确保文件名的扩展名正确
-        extension = download_link.split('.')[-1]
-        if not safe_file_name.endswith(f'.{extension}'):
-            safe_file_name = f'{safe_file_name[:95]}.{extension}'
+            # 清理文件名，去除不合法字符
+            safe_file_name = re.sub(r'[<>:"/\\|?*]', '', file_name)
+            safe_file_name = re.sub(r'[^\w\s.-]', '', safe_file_name)
 
-        # 完整的文件路径
-        file_path = os.path.join(download_dir, safe_file_name)
+            # 确保文件名的扩展名正确
+            extension = download_link.split('.')[-1]
+            if not safe_file_name.endswith(f'.{extension}'):
+                safe_file_name = f'{safe_file_name[:95]}.{extension}'
 
-        # 检查文件是否已存在
-        if os.path.exists(file_path):
-            print(f"File {safe_file_name} already exists. Skipping download.")
-            return
+            # 完整的文件路径
+            file_path = os.path.join(download_dir, safe_file_name)
 
-        # 下载文件
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)\
-            Chrome/58.0.3029.110 Safari/537.3'
-        }
-        download_response = requests.get(download_link, stream=True, headers=headers)
-        download_response.raise_for_status()
+            # 检查文件是否已存在
+            if os.path.exists(file_path):
+                print(f"File '{safe_file_name}' already exists. Skipping download.")
+                return
 
-        # 保存文件
-        with open(file_path, 'wb') as f:
-            for chunk in download_response.iter_content(chunk_size=8192):
-                if chunk:
-                    f.write(chunk)
-        print(f'Downloaded {safe_file_name}')
+            # 下载文件
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)\
+                Chrome/58.0.3029.110 Safari/537.3'
+            }
+            with requests.get(download_link, stream=True, headers=headers, timeout=30) as response:
+                response.raise_for_status()
+                with open(file_path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+            print(f"Downloaded '{safe_file_name}' successfully.")
+            return  # 下载成功，退出函数
 
-    except Exception as e:
-        print(f"Failed to download {download_link}. Error: {e}")
+        except requests.exceptions.RequestException as e:
+            attempt += 1
+            print(f"Failed to download '{download_link}'. Attempt {attempt} of {max_retries}. Error: {e}")
+            if attempt < max_retries:
+                print(f"Retrying in {wait_seconds} seconds...")
+                time.sleep(wait_seconds)
+            else:
+                print(f"Failed to download '{download_link}' after {max_retries} attempts. Skipping this file.")
+        except Exception as e:
+            attempt += 1
+            print(f"An unexpected error occurred while downloading '{download_link}'. Attempt {attempt} of {max_retries}. Error: {e}")
+            if attempt < max_retries:
+                print(f"Retrying in {wait_seconds} seconds...")
+                time.sleep(wait_seconds)
+            else:
+                print(f"Failed to download '{download_link}' after {max_retries} attempts due to unexpected errors. Skipping this file.")
 
 # 下载音轨
 def download_tracks(album_url, download_flac, download_wav, download_mp3, download_dir, max_threads=32):
@@ -68,8 +92,6 @@ def download_tracks(album_url, download_flac, download_wav, download_mp3, downlo
     print(f"Total tracks to download: {total_tracks}")
 
     # 计算每个线程应该下载的任务范围
-    if max_threads > total_tracks:
-        max_threads = total_tracks if total_tracks > 0 else 1
     chunk_size = total_tracks // max_threads
     remainder = total_tracks % max_threads
 
@@ -105,98 +127,65 @@ def download_tracks(album_url, download_flac, download_wav, download_mp3, downlo
                 print(f"Missing FLAC file: {safe_file_name}. Retrying download...")
                 download_and_save(link, download_dir)
 
-        if download_wav and file_name.endswith('.wav'):
+        elif download_wav and file_name.endswith('.wav'):
             if not os.path.exists(file_path):
                 print(f"Missing WAV file: {safe_file_name}. Retrying download...")
                 download_and_save(link, download_dir)
 
-        if download_mp3 and file_name.endswith('.mp3'):
+        elif download_mp3 and file_name.endswith('.mp3'):
             if not os.path.exists(file_path):
                 print(f"Missing MP3 file: {safe_file_name}. Retrying download...")
                 download_and_save(link, download_dir)
     print("Verified, Successfully fully downloaded!")
+    print("你需要手动退出")
 
 # 下载每个线程负责的任务
 def download_tracks_for_thread(track_links, download_flac, download_wav, download_mp3, download_dir):
     for link in track_links:
         try:
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)\
-                Chrome/58.0.3029.110 Safari/537.3'
-            }
-            track_page = requests.get(link, headers=headers)
+            track_page = requests.get(link)
             track_page.raise_for_status()
             track_soup = BeautifulSoup(track_page.text, 'html.parser')
             flac_link = mp3_link = wav_link = None
 
             for a in track_soup.find_all('a'):
                 if 'Click here to download as FLAC' in a.text:
-                    flac_link = urljoin(BASE_URL, a['href'])
+                    flac_link = a['href']
                 if 'Click here to download as WAV' in a.text:
-                    wav_link = urljoin(BASE_URL, a['href'])
+                    wav_link = a['href']
                 if 'Click here to download as MP3' in a.text:
-                    mp3_link = urljoin(BASE_URL, a['href'])
+                    mp3_link = a['href']
 
             # 根据选择下载格式
             if download_flac and flac_link:
                 download_and_save(flac_link, download_dir)
-            if download_wav and wav_link:
+            elif download_wav and wav_link:
                 download_and_save(wav_link, download_dir)
-            if download_mp3 and mp3_link:
+            elif download_mp3 and mp3_link:
                 download_and_save(mp3_link, download_dir)
+            else:
+                print(f'No download link found for {link}')
         except Exception as e:
             print(f"Error processing {link}: {e}")
 
-# 获取音轨链接
+
+# 下载音轨
 def get_track_links(album_url):
     response = requests.get(album_url)
     response.raise_for_status()
     soup = BeautifulSoup(response.text, 'html.parser')
     track_links = set()
+    base_url = 'https://downloads.khinsider.com'
 
-    # 假设所有下载链接都在class为albumListDiv的div内
-    album_list_div = soup.find('div', class_='albumListDiv')
-    if not album_list_div:
-        print("No album list div found.")
-        return list(track_links)
+    # 过滤有效的下载链接
+    for link in soup.find_all('a'):
+        if 'href' in link.attrs:
+            href = link['href']
+            full_link = href if href.startswith('http') else base_url + href
 
-    album_table = album_list_div.find('table', class_='albumList')
-    if not album_table:
-        print("No album table found.")
-        return list(track_links)
-
-    for tr in album_table.find_all('tr')[1:]:  # 跳过表头
-        tds = tr.find_all('td')
-        if len(tds) < 2:
-            print("Not enough td elements in tr. Skipping.")
-            continue
-
-        album_icon_td = tds[0]
-        album_name_td = tds[1]
-
-        album_a = album_icon_td.find('a', href=True)
-        album_img = album_icon_td.find('img', src=True)
-        if not album_a or not album_img:
-            print("Album link or image not found. Skipping.")
-            continue
-
-        album_link = urljoin(BASE_URL, album_a['href'])
-        album_img_url = album_img['src']
-
-        # 从第二个td中提取专辑名称
-        album_name_a = album_name_td.find('a', href=True)
-        if album_name_a:
-            album_name = album_name_a.text.strip()
-        else:
-            album_name = "Unknown Album"
-
-        print(f"Found album: {album_name}")
-        print(f"Album link: {album_link}")
-        print(f"Image URL: {album_img_url}")
-
-        # 可以选择将专辑名称和链接存储起来，供下载时使用
-        # 这里仅返回链接列表
-        track_links.add(album_link)
+            # 确保链接是合法且是音频格式
+            if full_link.endswith(('.mp3', '.flac', '.wav')):
+                track_links.add(full_link)
 
     print(f"Total unique track links found: {len(track_links)}")
     return list(track_links)
@@ -265,7 +254,7 @@ def ask_user_for_album_link(root):
     browse_button.grid(row=4, column=1, padx=(5,0), pady=5)
 
     # 线程数选择
-    threads_label = Label(main_frame, text="Select number of threads:")
+    threads_label = Label(main_frame, text="Select number of downloading threads:")
     threads_label.grid(row=5, column=0, sticky='w', pady=(10,0))
 
     thread_var = tk.IntVar(value=DEFAULT_THREADS)
