@@ -8,11 +8,13 @@ from urllib.parse import unquote, urljoin
 from concurrent.futures import ThreadPoolExecutor
 from PIL import Image, ImageTk
 import io
+import time
 
 # 用户可以自行设定的一些常量
 DEFAULT_URL = 'https://downloads.khinsider.com/game-soundtracks/album/hentai-prison-original-soundtrack-2022'
 DEFAULT_DOWNLOAD_DIR = os.path.join(os.path.expanduser("~"), "Downloads")
-LAST_URL_FILENAME = 'last_url.txt'
+LAST_URL_LOG_FILENAME = 'last_url_log.txt'
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 THREAD_OPTIONS = [1, 2, 4, 8, 16, 32]
 DEFAULT_THREADS = 32
 BASE_URL = 'https://downloads.khinsider.com'
@@ -91,22 +93,20 @@ def download_tracks(album_url, download_flac, download_wav, download_mp3, downlo
     total_tracks = len(track_links)
     print(f"Total tracks to download: {total_tracks}")
 
-    # 计算每个线程应该下载的任务范围
-    chunk_size = total_tracks // max_threads
-    remainder = total_tracks % max_threads
+    # 调整线程数不超过总任务数
+    actual_threads = min(max_threads, total_tracks) if total_tracks > 0 else 1
 
     # 使用ThreadPoolExecutor来进行多线程下载
-    with ThreadPoolExecutor(max_workers=max_threads) as executor:
+    with ThreadPoolExecutor(max_workers=actual_threads) as executor:
         futures = []
 
         # 将任务分配到不同的线程
-        for i in range(max_threads):
-            # 计算每个线程的起始位置和结束位置
+        chunk_size = (total_tracks + actual_threads - 1) // actual_threads  # 向上取整
+        for i in range(actual_threads):
             start_index = i * chunk_size
-            end_index = start_index + chunk_size
-            if i == max_threads - 1:  # 最后一个线程负责处理剩余任务
-                end_index += remainder
-
+            end_index = min(start_index + chunk_size, total_tracks)
+            if start_index >= end_index:
+                break
             futures.append(executor.submit(download_tracks_for_thread, track_links[start_index:end_index], download_flac, download_wav, download_mp3, download_dir))
 
         # 等待所有线程完成
@@ -137,7 +137,9 @@ def download_tracks(album_url, download_flac, download_wav, download_mp3, downlo
                 print(f"Missing MP3 file: {safe_file_name}. Retrying download...")
                 download_and_save(link, download_dir)
     print("Verified, Successfully fully downloaded!")
-    print("你需要手动退出")
+    print("程序将自动退出。")
+    # 退出主循环
+    root.quit()
 
 # 下载每个线程负责的任务
 def download_tracks_for_thread(track_links, download_flac, download_wav, download_mp3, download_dir):
@@ -168,7 +170,6 @@ def download_tracks_for_thread(track_links, download_flac, download_wav, downloa
         except Exception as e:
             print(f"Error processing {link}: {e}")
 
-
 # 下载音轨
 def get_track_links(album_url):
     response = requests.get(album_url)
@@ -181,7 +182,7 @@ def get_track_links(album_url):
     for link in soup.find_all('a'):
         if 'href' in link.attrs:
             href = link['href']
-            full_link = href if href.startswith('http') else base_url + href
+            full_link = href if href.startswith('http') else urljoin(base_url, href)
 
             # 确保链接是合法且是音频格式
             if full_link.endswith(('.mp3', '.flac', '.wav')):
@@ -191,17 +192,18 @@ def get_track_links(album_url):
     return list(track_links)
 
 # 读取最后的URL，如果不存在则返回默认URL
-def read_last_url(download_dir):
-    last_url_path = os.path.join(download_dir, LAST_URL_FILENAME)
+def read_last_url():
+    last_url_path = os.path.join(SCRIPT_DIR, LAST_URL_LOG_FILENAME)
     if os.path.exists(last_url_path):
         with open(last_url_path, 'r', encoding='utf-8') as f:
-            return f.read().strip()
-    else:
-        return DEFAULT_URL
+            url = f.read().strip()
+            if url:
+                return url
+    return DEFAULT_URL
 
 # 保存最后的URL
-def save_last_url(url, download_dir):
-    last_url_path = os.path.join(download_dir, LAST_URL_FILENAME)
+def save_last_url(url):
+    last_url_path = os.path.join(SCRIPT_DIR, LAST_URL_LOG_FILENAME)
     with open(last_url_path, 'w', encoding='utf-8') as f:
         f.write(url)
 
@@ -222,7 +224,7 @@ def ask_user_for_album_link(root):
     url_label.grid(row=0, column=0, sticky='w')
 
     # 获取上次的URL或使用默认
-    last_url = read_last_url(DEFAULT_DOWNLOAD_DIR)
+    last_url = read_last_url()
     url_var = tk.StringVar(value=last_url)
 
     # URL输入框
@@ -236,7 +238,7 @@ def ask_user_for_album_link(root):
     # 记住URL的复选框
     remember_var = BooleanVar()
     # 如果存在上次的URL且不是默认，则默认选中
-    remember_var.set(os.path.exists(os.path.join(DEFAULT_DOWNLOAD_DIR, LAST_URL_FILENAME)))
+    remember_var.set(os.path.exists(os.path.join(SCRIPT_DIR, LAST_URL_LOG_FILENAME)) and last_url != DEFAULT_URL)
 
     remember_check = Checkbutton(main_frame, text="Remember this URL", variable=remember_var)
     remember_check.grid(row=2, column=0, columnspan=2, sticky='w', pady=(5,10))
@@ -275,7 +277,6 @@ def ask_user_for_album_link(root):
     dialog.geometry(f"{width}x{height}+{x}+{y}")
 
     dialog.protocol("WM_DELETE_WINDOW", root.quit)  # 处理窗口关闭
-    dialog.mainloop()
 
 # 浏览目录选择
 def browse_directory(directory_var):
@@ -453,8 +454,8 @@ def proceed(url, download_dir, thread_count, remember, window, root):
 
     if remember:
         try:
-            save_last_url(url, download_dir)
-            print(f"Saved last URL to {download_dir}.")
+            save_last_url(url)
+            print(f"Saved last URL to {SCRIPT_DIR}.")
         except Exception as e:
             print(f"Failed to save the URL. Error: {e}")
 
@@ -499,7 +500,6 @@ def ask_user_for_download_options(album_url, download_dir, thread_count, root):
     checkbox_window.geometry(f"{width}x{height}+{x}+{y}")
 
     checkbox_window.protocol("WM_DELETE_WINDOW", root.quit)  # 处理窗口关闭
-    checkbox_window.mainloop()
 
 # 启动下载过程
 def start_download(album_url, download_dir, thread_count, flac, wav, mp3, window, root):
@@ -509,10 +509,10 @@ def start_download(album_url, download_dir, thread_count, flac, wav, mp3, window
 
     window.destroy()
     download_tracks(album_url, flac, wav, mp3, download_dir, max_threads=thread_count)
-    root.quit()
 
 if __name__ == "__main__":
     root = tk.Tk()
     root.title("Album Downloader")
     root.geometry("600x400")
     ask_user_for_album_link(root)
+    root.mainloop()
